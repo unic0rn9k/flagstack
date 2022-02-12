@@ -93,5 +93,5 @@ pub fn const_main() {
 }
 
 fn main() {
-    const_main()
+    dyn_main()
 }
