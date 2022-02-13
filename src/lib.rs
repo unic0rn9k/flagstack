@@ -2,12 +2,12 @@
 
 use std::{intrinsics::transmute, mem::transmute_copy};
 
-pub trait TypeTag: Copy + PartialEq + From<usize> + Into<usize> {
+pub trait TypeTag: Copy + PartialEq + From<u8> + Into<u8> {
     const REVOKED: Self;
-    const MAX: usize;
+    const MAX: u8;
     const IS_STACK: Self;
     const IS_CONST: Self;
-    fn from_usize(t: usize) -> Self;
+    fn from_u8(t: u8) -> Self;
 }
 
 pub trait DynTaggable<T: TypeTag> {
@@ -17,7 +17,7 @@ pub trait DynTaggable<T: TypeTag> {
 }
 
 pub trait ConstTaggable<T: TypeTag>: DynTaggable<T> {
-    fn const_contains<const TAG: usize>(&self) -> bool
+    fn const_contains<const TAG: u8>(&self) -> bool
     where
         Self: ~const ConstTaggable<T>,
         Self: Sized;
@@ -44,7 +44,7 @@ impl<T: TypeTag> dyn ConstTaggable<T> {
 }
 
 #[derive(Clone, Copy)]
-pub struct ConstTypeTagStack<'a, T: TypeTag, const TAG: usize>(pub &'a dyn ConstTaggable<T>);
+pub struct ConstTypeTagStack<'a, T: TypeTag, const TAG: u8>(pub &'a dyn ConstTaggable<T>);
 
 #[derive(Clone, Copy)]
 pub struct DynTypeTagStack<'a, T: TypeTag> {
@@ -52,7 +52,7 @@ pub struct DynTypeTagStack<'a, T: TypeTag> {
     pub tag: T,
 }
 
-impl<'a, T: TypeTag, const TAG: usize> DynTaggable<T> for ConstTypeTagStack<'a, T, TAG> {
+impl<'a, T: TypeTag, const TAG: u8> DynTaggable<T> for ConstTypeTagStack<'a, T, TAG> {
     fn contains(&self, tag: T) -> bool {
         TAG == T::IS_STACK.into() || tag.into() == TAG || self.0.contains(tag) || tag == T::IS_CONST
     }
@@ -95,8 +95,8 @@ impl<'a, T: TypeTag> DynTypeTagStack<'a, T> {
     }
 }
 
-impl<'a, T: TypeTag, const TAG: usize> ConstTaggable<T> for ConstTypeTagStack<'a, T, TAG> {
-    fn const_contains<const TAG2: usize>(&self) -> bool {
+impl<'a, T: TypeTag, const TAG: u8> ConstTaggable<T> for ConstTypeTagStack<'a, T, TAG> {
+    fn const_contains<const TAG2: u8>(&self) -> bool {
         TAG == T::IS_STACK.into()
             || TAG2 == TAG
             || self.0.contains(TAG2.into())
@@ -104,19 +104,19 @@ impl<'a, T: TypeTag, const TAG: usize> ConstTaggable<T> for ConstTypeTagStack<'a
     }
 }
 
-impl<'a, T: TypeTag, const TAG: usize> ConstTypeTagStack<'a, T, TAG> {
-    pub const fn push_tag<const TAG2: usize>(&'a self) -> ConstTypeTagStack<'a, T, TAG2> {
+impl<'a, T: TypeTag, const TAG: u8> ConstTypeTagStack<'a, T, TAG> {
+    pub const fn push_tag<const TAG2: u8>(&'a self) -> ConstTypeTagStack<'a, T, TAG2> {
         ConstTypeTagStack(self)
     }
     pub const fn pop_tag(&'a self) -> (&'a dyn ConstTaggable<T>, T)
     where
         T: ~const TypeTag,
     {
-        (self.0, T::from_usize(TAG))
+        (self.0, T::from_u8(TAG))
     }
 }
 
-impl<'a, T: TypeTag, const TAG: usize> Iterator for ConstTypeTagStack<'a, T, TAG> {
+impl<'a, T: TypeTag, const TAG: u8> Iterator for ConstTypeTagStack<'a, T, TAG> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
         let (child, tag) = self.pop_tag();
@@ -145,8 +145,8 @@ impl<'a, T: TypeTag> Iterator for DynTypeTagStack<'a, T> {
 #[macro_export]
 macro_rules! tagstack {
     (const $TypeTag: ty) => {{
-        const TMP: ConstTypeTagStack<'static, $TypeTag, { <$TypeTag>::REVOKED as usize }> =
-            ConstTypeTagStack::<'static, $TypeTag, { <$TypeTag>::REVOKED as usize }>(
+        const TMP: ConstTypeTagStack<'static, $TypeTag, { <$TypeTag>::REVOKED as u8 }> =
+            ConstTypeTagStack::<'static, $TypeTag, { <$TypeTag>::REVOKED as u8 }>(
                 &<$TypeTag>::REVOKED,
             );
         TMP
@@ -176,31 +176,31 @@ mod tests {
     pub use TypeTagEnum::*;
 
     impl const ConstTaggable<Self> for TypeTagEnum {
-        fn const_contains<const TAG: usize>(&self) -> bool {
-            *self as usize == TAG
+        fn const_contains<const TAG: u8>(&self) -> bool {
+            *self as u8 == TAG
         }
     }
 
-    impl const Into<usize> for TypeTagEnum {
-        fn into(self) -> usize {
-            self as usize
+    impl const Into<u8> for TypeTagEnum {
+        fn into(self) -> u8 {
+            self as u8
         }
     }
 
-    impl const From<usize> for TypeTagEnum {
-        fn from(t: usize) -> Self {
-            Self::from_usize(t)
+    impl const From<u8> for TypeTagEnum {
+        fn from(t: u8) -> Self {
+            Self::from_u8(t)
         }
     }
 
     impl const TypeTag for TypeTagEnum {
         const REVOKED: Self = Revoked;
-        const MAX: usize = Max as usize;
+        const MAX: u8 = Max as u8;
         const IS_STACK: Self = IsTagList;
         const IS_CONST: Self = IsConst;
-        fn from_usize(t: usize) -> Self {
-            if t > Max as usize {
-                panic!("Tried to convert usize bigger than TypeTag::Max to TypeTag")
+        fn from_u8(t: u8) -> Self {
+            if t > Max as u8 {
+                panic!("Tried to convert u8 bigger than TypeTag::Max to TypeTag")
             } else {
                 unsafe { std::mem::transmute(t as u8) }
             }
@@ -231,8 +231,8 @@ mod tests {
     #[test]
     fn dynamic() {
         let stack = tagstack!(const TypeTagEnum);
-        let stack = stack.push_tag::<{ Tag as usize }>();
-        let stack = stack.push_tag::<{ Tag2 as usize }>();
+        let stack = stack.push_tag::<{ Tag as u8 }>();
+        let stack = stack.push_tag::<{ Tag2 as u8 }>();
 
         assert!(stack.pop_tag().1.contains(Tag2));
         assert!(!stack.pop_tag().1.contains(Tag));
@@ -260,15 +260,15 @@ mod tests {
             ConstTypeTagStack(&Revoked);
 
         const STACK_2: ConstTypeTagStack<TypeTagEnum, { Tag.into() }> =
-            STACK.push_tag::<{ Tag as usize }>();
+            STACK.push_tag::<{ Tag as u8 }>();
 
         const STACK_3: ConstTypeTagStack<TypeTagEnum, { Tag2.into() }> =
-            STACK_2.push_tag::<{ Tag2 as usize }>();
+            STACK_2.push_tag::<{ Tag2 as u8 }>();
 
-        const IS_TRUE: bool = STACK_3.pop_tag().1.const_contains::<{ Tag2 as usize }>();
+        const IS_TRUE: bool = STACK_3.pop_tag().1.const_contains::<{ Tag2 as u8 }>();
         assert!(IS_TRUE);
-        assert!(STACK_2.pop_tag().1.const_contains::<{ Tag as usize }>());
-        assert!(!STACK_3.pop_tag().1.const_contains::<{ Tag as usize }>());
+        assert!(STACK_2.pop_tag().1.const_contains::<{ Tag as u8 }>());
+        assert!(!STACK_3.pop_tag().1.const_contains::<{ Tag as u8 }>());
 
         for tag in STACK_3 {
             assert!(tag.contains(Tag) || tag.contains(Tag2))
