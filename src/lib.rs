@@ -144,17 +144,19 @@ impl<'a, T: TypeTag> Iterator for DynTypeTagStack<'a, T> {
 
 #[macro_export]
 macro_rules! tagstack {
-    (const $TypeTag: ty) => {
-        ConstTypeTagStack::<'static, $TypeTag, { <$TypeTag>::REVOKED as usize }>(
-            &<$TypeTag>::REVOKED,
-        )
-    };
-    ($TypeTag: ty) => {
+    (const $TypeTag: ty) => {{
+        const TMP: ConstTypeTagStack<'static, $TypeTag, { <$TypeTag>::REVOKED as usize }> =
+            ConstTypeTagStack::<'static, $TypeTag, { <$TypeTag>::REVOKED as usize }>(
+                &<$TypeTag>::REVOKED,
+            );
+        TMP
+    }};
+    ($TypeTag: ty) => {{
         DynTypeTagStack::<'static, $TypeTag> {
             child: &<$TypeTag>::REVOKED,
             tag: <$TypeTag>::REVOKED,
         }
-    };
+    }};
 }
 
 #[cfg(test)]

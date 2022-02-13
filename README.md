@@ -36,8 +36,8 @@ pub fn const_main() {
 
 ## Using variables
 ``` asm
-tests::dyn_main:
-pub fn dyn_main() {
+tests::var_main:
+pub fn var_main() {
   80a0:    sub      rsp, 0x78                                                                  
     let stack = tagstack!(const TypeTagEnum);
   80a4:    lea      rax, [rip + 0x34085]                                                       
@@ -104,4 +104,77 @@ pub fn dyn_main() {
   818a:    mov      esi, 0x32                                                                  
   818f:    call     rax                                                                        
   8191:    ud2                                                                                 
+```
+
+## Using dynamic tagstack
+``` asm
+tests::dyn_main:
+pub fn dyn_main() {
+  7f20:    sub      rsp, 0x68                                                                  
+    let mut stack = tagstack!(TypeTagEnum);
+  7f24:    lea      rax, [rip + 0x341c1]                                                       
+  7f2b:    mov      qword ptr [rsp + 0x10], rax                                                
+  7f30:    lea      rax, [rip + 0x41449]                                                       
+  7f37:    mov      qword ptr [rsp + 0x18], rax                                                
+  7f3c:    mov      byte ptr [rsp + 0x20], 4                                                   
+    stack.push_tag(Tag);
+  7f41:    mov      byte ptr [rsp + 0x47], 0                                                   
+  7f46:    lea      rdi, [rsp + 0x28]                                                          
+  7f4b:    lea      rsi, [rsp + 0x10]                                                          
+  7f50:    movzx    edx, byte ptr [rsp + 0x47]                                                 
+  7f55:    call     tagstack::DynTypeTagStack<T>::push_tag                                     
+    stack.push_tag(Tag2);
+  7f5a:    mov      byte ptr [rsp + 0x63], 1                                                   
+  7f5f:    lea      rdi, [rsp + 0x48]                                                          
+  7f64:    lea      rsi, [rsp + 0x10]                                                          
+  7f69:    movzx    edx, byte ptr [rsp + 0x63]                                                 
+  7f6e:    call     tagstack::DynTypeTagStack<T>::push_tag                                     
+    assert!(stack.pop_tag().contains(Tag2));
+  7f73:    lea      rdi, [rsp + 0x10]                                                          
+  7f78:    call     tagstack::DynTypeTagStack<T>::pop_tag                                      
+  7f7d:    mov      byte ptr [rsp + 0x64], al                                                  
+  7f81:    mov      byte ptr [rsp + 0x65], 1                                                   
+  7f86:    lea      rdi, [rsp + 0x64]                                                          
+  7f8b:    movzx    esi, byte ptr [rsp + 0x65]                                                 
+  7f90:    call     <tests::TypeTagEnum as tagstack::DynTaggable<tests::TypeTagEnum>>::contains
+  7f95:    mov      byte ptr [rsp + 0xf], al                                                   
+  7f99:    mov      al, byte ptr [rsp + 0xf]                                                   
+    assert!(stack.pop_tag().contains(Tag2));
+  7f9d:    xor      al, 0xff                                                                   
+  7f9f:    test     al, 1                                                                      
+  7fa1:    jne      0x7fb3                                                                     
+    assert!(!stack.pop_tag().contains(Tag));
+  7fa3:    lea      rdi, [rsp + 0x10]                                                          
+  7fa8:    call     tagstack::DynTypeTagStack<T>::pop_tag                                      
+  7fad:    mov      byte ptr [rsp + 0x66], al                                                  
+  7fb1:    jmp      0x7fd1                                                                     
+    assert!(stack.pop_tag().contains(Tag2));
+  7fb3:    lea      rdi, [rip + 0x34133]                                                       
+  7fba:    lea      rdx, [rip + 0x413ef]                                                       
+  7fc1:    lea      rax, [rip - 0xe78]                                                         
+  7fc8:    mov      esi, 0x30                                                                  
+  7fcd:    call     rax                                                                        
+  7fcf:    ud2                                                                                 
+    assert!(!stack.pop_tag().contains(Tag));
+  7fd1:    mov      byte ptr [rsp + 0x67], 0                                                   
+  7fd6:    lea      rdi, [rsp + 0x66]                                                          
+  7fdb:    movzx    esi, byte ptr [rsp + 0x67]                                                 
+  7fe0:    call     <tests::TypeTagEnum as tagstack::DynTaggable<tests::TypeTagEnum>>::contains
+  7fe5:    mov      byte ptr [rsp + 0xe], al                                                   
+  7fe9:    mov      al, byte ptr [rsp + 0xe]                                                   
+    assert!(!stack.pop_tag().contains(Tag));
+  7fed:    xor      al, 0xff                                                                   
+  7fef:    xor      al, 0xff                                                                   
+  7ff1:    test     al, 1                                                                      
+  7ff3:    jne      0x7ffa                                                                     
+}
+  7ff5:    add      rsp, 0x68                                                                  
+  7ff9:    ret                                                                                 
+    assert!(!stack.pop_tag().contains(Tag));
+  7ffa:    lea      rdi, [rip + 0x3411c]                                                       
+  8001:    lea      rdx, [rip + 0x413c0]                                                       
+  8008:    lea      rax, [rip - 0xebf]                                                         
+  800f:    mov      esi, 0x30                                                                  
+  8014:    call     rax                                                                        
+  8016:    ud2                                                                                 
 ```

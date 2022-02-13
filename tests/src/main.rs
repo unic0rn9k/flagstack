@@ -67,7 +67,7 @@ impl DynTaggable<Self> for TypeTagEnum {
     }
 }
 
-pub fn dyn_main() {
+pub fn var_main() {
     let stack = tagstack!(const TypeTagEnum);
 
     let stack = stack.push_tag::<{ Tag as usize }>();
@@ -90,6 +90,16 @@ pub fn const_main() {
     const IS_TRUE: bool = STACK_3.pop_tag().1.const_contains::<{ Tag2 as usize }>();
     assert!(IS_TRUE);
     assert!(!STACK_3.pop_tag().1.const_contains::<{ Tag as usize }>());
+}
+
+pub fn dyn_main() {
+    let mut stack = tagstack!(TypeTagEnum);
+
+    stack.push_tag(Tag);
+    stack.push_tag(Tag2);
+
+    assert!(stack.pop_tag().contains(Tag2));
+    assert!(!stack.pop_tag().contains(Tag));
 }
 
 fn main() {
