@@ -1,4 +1,28 @@
 
+# tagstack
+
+Create 'tagstacks', which are stacks of enums in a way that makes it easy for the compiler to figure out if it is constant.
+This is useful for conditional code execution, where it is not possible to guarantee that the conditions are known at compile time.
+
+# Assembly examples
+
+The code used to generate the assembly shown bellow is found [here](./tests/src/main.rs).
+It is compiled on the dev profile, so it is expected to be optimized further in release.
+
+## Release mode
+In release mode both the constant and variable tests will be compiled to just `ret`.
+The dynamic example will however be compiled to:
+
+```asm
+
+tests::main:
+  7b60:    push    rax                      
+  7b61:    lea     rdi, [rip + 0x334a9]     
+  7b68:    lea     rdx, [rip + 0x408b9]     
+  7b6f:    mov     esi, 0x30                
+  7b74:    call    qword ptr [rip + 0x43096]
+  7b7a:    ud2                              
+
 ```
 
 ## Using constants
