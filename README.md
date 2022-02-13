@@ -1,13 +1,5 @@
 
-# tagstack
-
-Create 'tagstacks', which are stacks of enums in a way that makes it easy for the compiler to figure out if it is constant.
-This is useful for conditional code execution, where it is not possible to guarantee that the conditions are known at compile time.
-
-# Assembly examples
-
-The code used to generate the assembly shown bellow is found [here](./tests/src/main.rs).
-It is compiled on the dev profile, so it is expected to be optimized further in release.
+```
 
 ## Using constants
 
