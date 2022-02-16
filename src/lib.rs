@@ -2,7 +2,7 @@
 
 use std::{intrinsics::transmute, mem::transmute_copy};
 
-pub trait TypeTag: Copy + PartialEq + From<u8> + Into<u8> {
+pub trait Flag: Copy + PartialEq + From<u8> + Into<u8> {
     const REVOKED: Self;
     const MAX: u8;
     const IS_STACK: Self;
@@ -10,21 +10,21 @@ pub trait TypeTag: Copy + PartialEq + From<u8> + Into<u8> {
     fn from_u8(t: u8) -> Self;
 }
 
-pub trait DynTaggable<T: TypeTag> {
+pub trait DynFlaggable<T: Flag> {
     fn contains(&self, tag: T) -> bool;
     fn tag(&mut self, tag: T);
     fn untag(&mut self, tag: T);
 }
 
-pub trait ConstTaggable<T: TypeTag>: DynTaggable<T> {
+pub trait ConstFlaggable<T: Flag>: DynFlaggable<T> {
     fn const_contains<const TAG: u8>(&self) -> bool
     where
-        Self: ~const ConstTaggable<T>,
+        Self: ~const ConstFlaggable<T>,
         Self: Sized;
 }
 
-impl<T: TypeTag> dyn DynTaggable<T> {
-    pub fn as_const(&self) -> &dyn ConstTaggable<T> {
+impl<T: Flag> dyn DynFlaggable<T> {
+    pub fn as_const(&self) -> &dyn ConstFlaggable<T> {
         if self.contains(T::IS_CONST) {
             unsafe { transmute(self) }
         } else {
@@ -33,8 +33,8 @@ impl<T: TypeTag> dyn DynTaggable<T> {
     }
 }
 
-impl<T: TypeTag> dyn ConstTaggable<T> {
-    pub fn as_dyn(&self) -> &dyn DynTaggable<T> {
+impl<T: Flag> dyn ConstFlaggable<T> {
+    pub fn as_dyn(&self) -> &dyn DynFlaggable<T> {
         if !self.contains(T::IS_CONST) {
             unsafe { transmute(self) }
         } else {
@@ -44,15 +44,15 @@ impl<T: TypeTag> dyn ConstTaggable<T> {
 }
 
 #[derive(Clone, Copy)]
-pub struct ConstTypeTagStack<'a, T: TypeTag, const TAG: u8>(pub &'a dyn ConstTaggable<T>);
+pub struct ConstFlagStack<'a, T: Flag, const TAG: u8>(pub &'a dyn ConstFlaggable<T>);
 
 #[derive(Clone, Copy)]
-pub struct DynTypeTagStack<'a, T: TypeTag> {
-    pub child: &'a dyn DynTaggable<T>,
+pub struct DynFlagStack<'a, T: Flag> {
+    pub child: &'a dyn DynFlaggable<T>,
     pub tag: T,
 }
 
-impl<'a, T: TypeTag, const TAG: u8> DynTaggable<T> for ConstTypeTagStack<'a, T, TAG> {
+impl<'a, T: Flag, const TAG: u8> DynFlaggable<T> for ConstFlagStack<'a, T, TAG> {
     fn contains(&self, tag: T) -> bool {
         TAG == T::IS_STACK.into() || tag.into() == TAG || self.0.contains(tag) || tag == T::IS_CONST
     }
@@ -65,7 +65,7 @@ impl<'a, T: TypeTag, const TAG: u8> DynTaggable<T> for ConstTypeTagStack<'a, T, 
     }
 }
 
-impl<'a, T: TypeTag> DynTaggable<T> for DynTypeTagStack<'a, T> {
+impl<'a, T: Flag> DynFlaggable<T> for DynFlagStack<'a, T> {
     fn contains(&self, tag: T) -> bool {
         tag != T::IS_CONST
             && (self.tag == T::IS_STACK || tag == self.tag || self.child.contains(tag))
@@ -84,8 +84,8 @@ impl<'a, T: TypeTag> DynTaggable<T> for DynTypeTagStack<'a, T> {
     }
 }
 
-impl<'a, T: TypeTag> DynTypeTagStack<'a, T> {
-    pub const fn push_tag(&'a self, tag: T) -> DynTypeTagStack<'a, T> {
+impl<'a, T: Flag> DynFlagStack<'a, T> {
+    pub const fn push_tag(&'a self, tag: T) -> DynFlagStack<'a, T> {
         Self { child: self, tag }
     }
     pub fn pop_tag(&mut self) -> T {
@@ -95,7 +95,7 @@ impl<'a, T: TypeTag> DynTypeTagStack<'a, T> {
     }
 }
 
-impl<'a, T: TypeTag, const TAG: u8> ConstTaggable<T> for ConstTypeTagStack<'a, T, TAG> {
+impl<'a, T: Flag, const TAG: u8> ConstFlaggable<T> for ConstFlagStack<'a, T, TAG> {
     fn const_contains<const TAG2: u8>(&self) -> bool {
         TAG == T::IS_STACK.into()
             || TAG2 == TAG
@@ -104,19 +104,19 @@ impl<'a, T: TypeTag, const TAG: u8> ConstTaggable<T> for ConstTypeTagStack<'a, T
     }
 }
 
-impl<'a, T: TypeTag, const TAG: u8> ConstTypeTagStack<'a, T, TAG> {
-    pub const fn push_tag<const TAG2: u8>(&'a self) -> ConstTypeTagStack<'a, T, TAG2> {
-        ConstTypeTagStack(self)
+impl<'a, T: Flag, const TAG: u8> ConstFlagStack<'a, T, TAG> {
+    pub const fn push_tag<const TAG2: u8>(&'a self) -> ConstFlagStack<'a, T, TAG2> {
+        ConstFlagStack(self)
     }
-    pub const fn pop_tag(&'a self) -> (&'a dyn ConstTaggable<T>, T)
+    pub const fn pop_tag(&'a self) -> (&'a dyn ConstFlaggable<T>, T)
     where
-        T: ~const TypeTag,
+        T: ~const Flag,
     {
         (self.0, T::from_u8(TAG))
     }
 }
 
-impl<'a, T: TypeTag, const TAG: u8> Iterator for ConstTypeTagStack<'a, T, TAG> {
+impl<'a, T: Flag, const TAG: u8> Iterator for ConstFlagStack<'a, T, TAG> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
         let (child, tag) = self.pop_tag();
@@ -130,7 +130,7 @@ impl<'a, T: TypeTag, const TAG: u8> Iterator for ConstTypeTagStack<'a, T, TAG> {
         }
     }
 }
-impl<'a, T: TypeTag> Iterator for DynTypeTagStack<'a, T> {
+impl<'a, T: Flag> Iterator for DynFlagStack<'a, T> {
     type Item = T;
     fn next(&mut self) -> Option<T> {
         let tag = self.pop_tag();
@@ -143,16 +143,16 @@ impl<'a, T: TypeTag> Iterator for DynTypeTagStack<'a, T> {
 }
 
 #[macro_export]
-macro_rules! tagstack {
+macro_rules! flagstack {
     (const $TypeTag: ty) => {{
-        const TMP: ConstTypeTagStack<'static, $TypeTag, { <$TypeTag>::REVOKED as u8 }> =
-            ConstTypeTagStack::<'static, $TypeTag, { <$TypeTag>::REVOKED as u8 }>(
+        const TMP: ConstFlagStack<'static, $TypeTag, { <$TypeTag>::REVOKED as u8 }> =
+            ConstFlagStack::<'static, $TypeTag, { <$TypeTag>::REVOKED as u8 }>(
                 &<$TypeTag>::REVOKED,
             );
         TMP
     }};
     ($TypeTag: ty) => {{
-        DynTypeTagStack::<'static, $TypeTag> {
+        DynFlagStack::<'static, $TypeTag> {
             child: &<$TypeTag>::REVOKED,
             tag: <$TypeTag>::REVOKED,
         }
@@ -175,7 +175,7 @@ mod tests {
 
     pub use TypeTagEnum::*;
 
-    impl const ConstTaggable<Self> for TypeTagEnum {
+    impl const ConstFlaggable<Self> for TypeTagEnum {
         fn const_contains<const TAG: u8>(&self) -> bool {
             *self as u8 == TAG
         }
@@ -193,7 +193,7 @@ mod tests {
         }
     }
 
-    impl const TypeTag for TypeTagEnum {
+    impl const Flag for TypeTagEnum {
         const REVOKED: Self = Revoked;
         const MAX: u8 = Max as u8;
         const IS_STACK: Self = IsTagList;
@@ -207,7 +207,7 @@ mod tests {
         }
     }
 
-    impl DynTaggable<Self> for TypeTagEnum {
+    impl DynFlaggable<Self> for TypeTagEnum {
         fn contains(&self, tag: TypeTagEnum) -> bool {
             *self == tag
         }
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn dynamic() {
-        let stack = tagstack!(const TypeTagEnum);
+        let stack = flagstack!(const TypeTagEnum);
         let stack = stack.push_tag::<{ Tag as u8 }>();
         let stack = stack.push_tag::<{ Tag2 as u8 }>();
 
@@ -244,25 +244,25 @@ mod tests {
     #[test]
     #[should_panic]
     fn cast_dyn_to_const() {
-        let stack: &dyn DynTaggable<TypeTagEnum> = &tagstack!(TypeTagEnum);
+        let stack: &dyn DynFlaggable<TypeTagEnum> = &flagstack!(TypeTagEnum);
         stack.as_const();
     }
 
     #[test]
     fn cast_const_to_const() {
-        let stack: &dyn DynTaggable<TypeTagEnum> = &tagstack!(const TypeTagEnum);
+        let stack: &dyn DynFlaggable<TypeTagEnum> = &flagstack!(const TypeTagEnum);
         stack.as_const();
     }
 
     #[test]
     fn constant() {
-        const STACK: ConstTypeTagStack<'static, TypeTagEnum, { Revoked.into() }> =
-            ConstTypeTagStack(&Revoked);
+        const STACK: ConstFlagStack<'static, TypeTagEnum, { Revoked.into() }> =
+            ConstFlagStack(&Revoked);
 
-        const STACK_2: ConstTypeTagStack<TypeTagEnum, { Tag.into() }> =
+        const STACK_2: ConstFlagStack<TypeTagEnum, { Tag.into() }> =
             STACK.push_tag::<{ Tag as u8 }>();
 
-        const STACK_3: ConstTypeTagStack<TypeTagEnum, { Tag2.into() }> =
+        const STACK_3: ConstFlagStack<TypeTagEnum, { Tag2.into() }> =
             STACK_2.push_tag::<{ Tag2 as u8 }>();
 
         const IS_TRUE: bool = STACK_3.pop_tag().1.const_contains::<{ Tag2 as u8 }>();
