@@ -1,4 +1,11 @@
-#![feature(const_trait_impl, const_fn_trait_bound, const_mut_refs)]
+#![feature(
+    const_trait_impl,
+    const_fn_trait_bound,
+    const_mut_refs,
+    bench_black_box
+)]
+
+use std::hint::black_box;
 
 use flagstack::*;
 
@@ -70,8 +77,12 @@ pub fn var_main() {
     let stack = stack.push_tag::<{ Flag1 as u8 }>();
     let stack = stack.push_tag::<{ Flag2 as u8 }>();
 
-    assert!(stack.pop_tag().1.contains(Flag2));
-    assert!(!stack.pop_tag().1.contains(Flag1));
+    assert!(black_box(stack.pop_tag().1.contains(Flag2)));
+    assert!(black_box(!stack.pop_tag().1.contains(Flag1)));
+}
+
+pub fn dummy() {
+    assert!(black_box(true));
 }
 
 pub fn const_main() {
@@ -84,9 +95,12 @@ pub fn const_main() {
     const STACK_3: ConstFlagStack<ExampleFlags, { Flag2.into() }> =
         STACK_2.push_tag::<{ Flag2 as u8 }>();
 
-    const IS_TRUE: bool = STACK_3.pop_tag().1.const_contains::<{ Flag2 as u8 }>();
-    assert!(IS_TRUE);
-    assert!(!STACK_3.pop_tag().1.const_contains::<{ Flag1 as u8 }>());
+    assert!(black_box(
+        STACK_3.pop_tag().1.const_contains::<{ Flag2 as u8 }>()
+    ));
+    assert!(black_box(
+        !STACK_3.pop_tag().1.const_contains::<{ Flag1 as u8 }>()
+    ));
 }
 
 pub fn dyn_main() {
@@ -95,8 +109,8 @@ pub fn dyn_main() {
     stack.push_tag(Flag1);
     stack.push_tag(Flag2);
 
-    assert!(stack.pop_tag().contains(Flag2));
-    assert!(!stack.pop_tag().contains(Flag1));
+    assert!(black_box(stack.pop_tag().contains(Flag2)));
+    assert!(black_box(!stack.pop_tag().contains(Flag1)));
 }
 
 fn main() {
@@ -106,4 +120,6 @@ fn main() {
     dyn_main();
     #[cfg(feature = "variable")]
     var_main();
+    #[cfg(feature = "dummy")]
+    dummy();
 }
