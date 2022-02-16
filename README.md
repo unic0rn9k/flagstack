@@ -13,8 +13,6 @@ It is compiled on the dev profile, so it is expected to be optimized further in 
 In release mode both the constant and variable tests will be compiled to just `ret` unles `black_box` are used'.
 
 
-```
-
 ### Using constants
 
 ``` asm
